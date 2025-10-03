@@ -1,0 +1,44 @@
+services:
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - rabbit-network
+
+  producer:
+    build:
+      context: ./distributed-workqueue
+    env_file:
+      - .env
+    networks:
+      - rabbit-network
+    command: sh -c "sleep 10 && node producer.js"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+  worker:
+    build:
+      context: ./distributed-workqueue
+    env_file:
+      - .env
+    networks:
+      - rabbit-network
+    command: sh -c "sleep 20 && node worker.js" 
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+
+networks:
+  rabbit-network:
+    driver: bridge
+
