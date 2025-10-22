@@ -15,7 +15,7 @@ services:
 
   producer:
     build:
-      context: ./distributed-workqueue
+      context: .
     env_file:
       - .env
     networks:
@@ -27,7 +27,7 @@ services:
 
   worker:
     build:
-      context: ./distributed-workqueue
+      context: .
     env_file:
       - .env
     networks:

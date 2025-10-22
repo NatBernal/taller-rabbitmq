@@ -1,0 +1,41 @@
+services:
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - rabbit-network
+
+  worker:
+    build:
+      context: .
+    env_file:
+      - .env
+    networks:
+      - rabbit-network
+    command: sh -c "sleep 5 && node receive_logs.js" # Add a delay to ensure producer starts first
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+  producer:
+    build:
+      context: .
+    env_file:
+      - .env
+    networks:
+      - rabbit-network
+    command: sh -c "sleep 15 && node emit_log.js" # Add a delay to ensure RabbitMQ is ready
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+networks:
+  rabbit-network:
+    driver: bridge
