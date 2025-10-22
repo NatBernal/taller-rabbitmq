@@ -1,58 +1,20 @@
-# Taller rabbitmq
+# Taller RabbitMQ
 
-## Integrantes:
-
-- Sebastian Cañon
+## Equipo
+- Sebastian Cañon  
 - Natalia Bernal
 
-### Evidencia distribución equilibrada de tareas
+## Taller 19 de octubre
+Este taller demuestra distintos patrones de mensajería con RabbitMQ y Node.js:
+- **distributed-workqueue**: una cola que reparte tareas entre varios workers.
+- **fanout-pubsub**: cada mensaje se replica a todos los suscriptores conectados.
+- **direct-routing**: los mensajes van a los consumidores que piden una severidad específica.
 
-Primero se asegura que se ejecuten dos réplicas del worker con el comando:
+## Notas sobre la documentación de rabbit mq get started
+Para la entrega del lunes 19 de octubre se solicitó implementar el tutorial de RabbitMQ sobre Publish/Subscribe. Tomamos lo construido en este taller y separamos en carpetas para reproducir ese ejemplo: el productor publica mensajes en el exchange `logs` de tipo fanout y cada receptor crea una cola exclusiva, la enlaza al exchange y recibe una copia de cada mensaje. Así demostramos cómo un sistema de logs puede mandarse simultáneamente a múltiples consumidores, tal como describe el tutorial oficial.
 
-```bash
-docker compose up --build -d --scale worker=2
-```
-
-Se verificó que se estén ejecutando dos contenedores:
-![Evidencia docker ps](resources/2workers-containers-running.png)
-
-Con los logs del contenedor se comprueba la distribución de tareas:
-![Evidencia distribución equilibrada de tareas](resources/tasks-workers.png)
-
-Asimismo se pueden ver a continuación los logs del productor y workers:
-![Evidencia logs de productor y workers](resources/workers&producer-logs.png)
-
-### Prueba de tolerancia a fallos
-
-Mientras se estaba ejecutando el proyecto se abrió una nueva terminal en la cual se eliminó el contenedor del worker 1, en la segunda consola se evidencia como el worker 2 asume las tareas fatantes de la cola:
-![Evidencia tolerancia a fallos](resources/stop-one-worker.png)
-
-### Explicación del flujo del sistema
-
-El sistema implementa un patrón productor–consumidor distribuido utilizando RabbitMQ como message broker.
-
-#### Productor (Producer)
-
-- Genera tareas con un nivel de complejidad de 1 a 5.
-- Publica cada tarea en una cola de RabbitMQ llamada `tareas_distribuidas`.
-
-#### Broker (RabbitMQ)
-
-- Actúa como intermediario entre productores y consumidores.
-- Almacena temporalmente los mensajes (tareas) y los distribuye a los workers de manera balanceada.
-- Garantiza persistencia y acknowledgments: una tarea no se elimina de la cola hasta que un worker confirme su finalización.
-
-#### Consumidores (Workers)
-
-- Reciben los mensajes de la cola `tareas_distribuidas`.
-- Al terminar, envían un ACK a RabbitMQ para confirmar que la tarea fue completada exitosamente.
-
-### Explicación de mecanismos de fiabilidad y distribución del trabajo
-
-- Queue(colas) : Las tareas persisten aunque RabbitMQ se reinicie (si está configurado con `durable=true`).
-
-- Los workers confirman las tareas sólo después de procesarlas (`basic_ack`), evitando pérdida de trabajo si un worker falla.
-
-- Si un worker muere (ej. por falta de memoria o caída de contenedor) antes de hacer ACK, RabbitMQ reencola la tarea y otro worker la procesa.
-
-- RabbitMQ asigna las tareas de manera equitativa entre los workers activos y se pueden añadir más workers al sistema sin modificar el productor ni RabbitMQ.
+## Fiabilidad básica
+- Las colas pueden ser duraderas, así que los mensajes sobreviven a un reinicio de RabbitMQ.
+- Los workers procesan de a una tarea y confirman con ACK sólo cuando terminan.
+- Si un contenedor falla antes del ACK, RabbitMQ devuelve la tarea a la cola para otro worker.
+- Agregar o quitar workers no requiere cambios en el productor ni en RabbitMQ.
